@@ -46,20 +46,22 @@ class GpuContext {
 
 class GpuRunner(rendering: Rendering) {
   val kernelMainLines = List(
-    "__kernel void kernelMain(__global double *results) {",
+    "#define color float3",
+    "",
+    "__kernel void kernelMain(__global float *results) {",
     "    int taskId = get_global_id(0);",
-    "    double3 color;",
-    "    color.x = (double)(taskId &0xff);",
-    "    color.y = (double)((taskId>>2) &0xff);",
-    "    color.z = (double)((taskId>>4) &0xff);",
+    "    color paint;",
+    "    paint.x = (float)(taskId &0xff);",
+    "    paint.y = (float)((taskId>>2) &0xff);",
+    "    paint.z = (float)((taskId>>4) &0xff);",
     "    int outputOffset = 3 * taskId;",
-    "    results[outputOffset+0] = color.x;",
-    "    results[outputOffset+1] = color.y;",
-    "    results[outputOffset+2] = color.z;",
+    "    results[outputOffset+0] = paint.x;",
+    "    results[outputOffset+1] = paint.y;",
+    "    results[outputOffset+2] = paint.z;",
     "}"
   )
 
-  val colorVectorsPerRow = new Array[Double](3 * rendering.screenWidth)
+  val colorVectorsPerRow = new Array[Float](3 * rendering.screenWidth)
 
   def run = {
     val contextSetup = new GpuContext
@@ -70,11 +72,11 @@ class GpuRunner(rendering: Rendering) {
 
     // Allocate the memory objects for the input- and output data
     val memObjects = new Array[cl_mem](3)
-    val singleVectorSize = Sizeof.cl_double * 3
-    val rowArraySize = singleVectorSize * rendering.screenWidth
+    val singleColorSize = Sizeof.cl_float * 3
+    val colorArraySize = singleColorSize * rendering.screenWidth
 
     val resultPointer = Pointer.to(colorVectorsPerRow)
-    val resultBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, rowArraySize, resultPointer, null)
+    val resultBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, colorArraySize, resultPointer, null)
 
     val kernelSource = Array[String](kernelMainLines.mkString("\n"))
     // Create the program from the source code
@@ -100,7 +102,7 @@ class GpuRunner(rendering: Rendering) {
       clEnqueueNDRangeKernel(commandQueue, kernel, 1, null, global_work_size, local_work_size, 0, null, null)
 
       // Read the output data
-      clEnqueueReadBuffer(commandQueue, resultBuffer, CL_TRUE, 0, rowArraySize, resultPointer, 0, null, null)
+      clEnqueueReadBuffer(commandQueue, resultBuffer, CL_TRUE, 0, colorArraySize, resultPointer, 0, null, null)
       paintResults(row)
     }
     println("\nCleaning up openCL stuff")
@@ -116,9 +118,9 @@ class GpuRunner(rendering: Rendering) {
   def paintResults(row:Int): Unit = {
     for (x <- 0 until rendering.screenWidth) {
       val offset = 3 * x
-      val red = colorVectorsPerRow(offset + 0).toFloat
-      val green = colorVectorsPerRow(offset + 1).toFloat
-      val blue = colorVectorsPerRow(offset + 2).toFloat
+      val red = colorVectorsPerRow(offset + 0)
+      val green = colorVectorsPerRow(offset + 1)
+      val blue = colorVectorsPerRow(offset + 2)
       rendering.setPixel(x, row, red, green, blue)
     }
   }
