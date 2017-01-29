@@ -1,7 +1,6 @@
 package net.aethersanctum.goopygoop
 
 import java.awt.image.BufferedImage
-import java.awt.{Color, Graphics2D}
 import java.io.File
 import javax.imageio.ImageIO
 
@@ -11,16 +10,19 @@ class Rendering(val screenWidth:Int, val screenHeight:Int) {
 
   val image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB)
 
-  val ctx = image.getGraphics.asInstanceOf[Graphics2D]
-
   def save(filename: String) {
     System.out.println(s"saving $filename")
     ImageIO.write(image, "png", new File(filename))
   }
 
-  def setPixel(x:Int, y:Int, color:Color) {
-    ctx.setColor(color)
-    ctx.fillRect(x, y, 1, 1)
+  def setPixel(x:Int, y:Int, red:Int, green:Int, blue:Int) {
+    image.setRGB(x, y, red | (green << 8) | (blue << 16))
+  }
+
+  val RGB_RANGE = 255
+
+  def setPixel(x:Int, y:Int, red:Float, green:Float, blue:Float) {
+    setPixel(x, y, (RGB_RANGE * red).toInt, (RGB_RANGE * green).toInt, (RGB_RANGE * blue).toInt)
   }
 }
 
@@ -28,8 +30,11 @@ object Rendering {
   def main(args:Array[String]): Unit = {
     val rendering = new Rendering(640, 480)
     for (y:Int <- 0 until rendering.screenHeight; x:Int <- 0 until rendering.screenWidth) {
-      val color = if (((x ^ y) & 0x20) > 0) Color.BLACK else Color.WHITE
-      rendering.setPixel(x, y, color)
+      val check = ((x ^ y) & 0x20) > 0
+      val red = if (check) 0 else (y & 0xff)
+      val green = if (check) 0 else 255
+      val blue = if (check) 0 else (x & 0xff)
+      rendering.setPixel(x, y, red, green, blue)
     }
     rendering.save("RenderingTest.png")
   }
