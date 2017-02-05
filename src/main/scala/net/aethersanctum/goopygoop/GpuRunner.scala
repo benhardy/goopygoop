@@ -51,8 +51,8 @@ class GpuRunner(rendering: Rendering) {
     "__constant double3 camera_position = { 0, 1, -10 };",
     "__constant double3 look_at = { 0, 0, 30 };",
     "__constant double3 up = { 0, 1, 0 };",
-    "__constant int screen_width = 640;",
-    "__constant int screen_height = 480;",
+    s"__constant int screen_width = ${rendering.screenWidth};",
+    s"__constant int screen_height = ${rendering.screenHeight};",
     "",
     "__constant color BLACK = { 0,0,0 };",
     "__constant color WHITE = { 1,1,1 };",
@@ -165,7 +165,7 @@ class GpuRunner(rendering: Rendering) {
 
 object GpuRunner {
   def main(args:Array[String]):Unit = {
-    val rendering = new Rendering(640, 480)
+    val rendering = new Rendering(1024, 768)
     val runner = new GpuRunner(rendering)
     runner.run
     rendering.save("GpuRunner.png")
