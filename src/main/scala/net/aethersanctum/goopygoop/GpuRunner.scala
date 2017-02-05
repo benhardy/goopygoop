@@ -48,7 +48,7 @@ class GpuRunner(rendering: Rendering) {
   val kernelMainLines = List(
     "#define color float3",
     "",
-    "__kernel void kernelMain(__global float *results) {",
+    "__kernel void kernelMain(__global double* lookArray, __global float *results) {",
     "    int taskId = get_global_id(0);",
     "    color paint;",
     "    paint.x = (float)(taskId &0xff);",
@@ -61,6 +61,7 @@ class GpuRunner(rendering: Rendering) {
     "}"
   )
 
+  val lookDirectionArray = new Array[Double](3)
   val colorVectorsPerRow = new Array[Float](3 * rendering.screenWidth)
 
   def run = {
@@ -75,6 +76,8 @@ class GpuRunner(rendering: Rendering) {
     val singleColorSize = Sizeof.cl_float * 3
     val colorArraySize = singleColorSize * rendering.screenWidth
 
+    val lookPointer = Pointer.to(lookDirectionArray)
+    val lookBuffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, Sizeof.cl_double *lookDirectionArray.length, lookPointer, null)
     val resultPointer = Pointer.to(colorVectorsPerRow)
     val resultBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, colorArraySize, resultPointer, null)
 
@@ -92,7 +95,8 @@ class GpuRunner(rendering: Rendering) {
       printf("\rrendering row %d/%d", row, rendering.screenHeight)
 
       // Set the arguments for the kernel
-      clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(resultBuffer))
+      clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(lookBuffer))
+      clSetKernelArg(kernel, 1, Sizeof.cl_mem, Pointer.to(resultBuffer))
 
       // Set the work-item dimensions
       val global_work_size = Array[Long](rendering.screenWidth)
