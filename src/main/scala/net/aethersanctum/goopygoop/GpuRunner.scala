@@ -48,12 +48,42 @@ class GpuRunner(rendering: Rendering) {
   val kernelMainLines = List(
     "#define color float3",
     "",
-    "__kernel void kernelMain(__global double* lookArray, __global float *results) {",
+    "__constant double3 camera_position = { 0, 1, -10 };",
+    "__constant double3 look_at = { 0, 0, 30 };",
+    "__constant double3 up = { 0, 1, 0 };",
+    "__constant int screen_width = 640;",
+    "__constant int screen_height = 480;",
+    "",
+    "__constant color BLACK = { 0,0,0 };",
+    "__constant color WHITE = { 1,1,1 };",
+    "__constant color RED = { 1,0,0 };",
+    "",
+    "int checkering(double3 here) {",
+    "   return (here.x - floor(here.x) > 0.5 ? 1 : 0)",
+    "        ^ (here.y - floor(here.y) > 0.5 ? 1 : 0)",
+    "        ^ (here.z - floor(here.z) > 0.5 ? 1 : 0);",
+    "}",
+    "color trace_a_plane(double3 ray_direction) {",
+    "  if (ray_direction.y >= 0) return BLACK;",
+    "  double3 hit = { ",
+    "    camera_position.y * ray_direction.x / ray_direction.y,",
+    "    0,",
+    "    camera_position.y * ray_direction.z / ray_direction.y",
+    "  };",
+    "  color alt = checkering(hit) ? WHITE : RED;",
+    "  return alt;",
+    "}",
+    "",
+    "__kernel void kernelMain(__global int *imageMetadata, __global float *results) {",
     "    int taskId = get_global_id(0);",
-    "    color paint;",
-    "    paint.x = (float)(taskId &0xff);",
-    "    paint.y = (float)((taskId>>2) &0xff);",
-    "    paint.z = (float)((taskId>>4) &0xff);",
+    "    int row = imageMetadata[0];",
+    "    double3 look_direction = normalize(look_at - camera_position);",
+    "    double3 right = cross(up, look_direction);",
+    "    double3 actual_up = cross(look_direction, right);",
+    "    double x_pixel = (double)taskId/screen_width - 0.5;",
+    "    double y_pixel = -(double)(row-screen_height/2) / screen_width;",
+    "    double3 ray = look_direction + (right * x_pixel) + (actual_up * y_pixel);",
+    "    color paint = trace_a_plane(normalize(ray));",
     "    int outputOffset = 3 * taskId;",
     "    results[outputOffset+0] = paint.x;",
     "    results[outputOffset+1] = paint.y;",
@@ -61,7 +91,7 @@ class GpuRunner(rendering: Rendering) {
     "}"
   )
 
-  val lookDirectionArray = new Array[Double](3)
+  val imageMetadataArray = new Array[Int](4)
   val colorVectorsPerRow = new Array[Float](3 * rendering.screenWidth)
 
   def run = {
@@ -76,8 +106,9 @@ class GpuRunner(rendering: Rendering) {
     val singleColorSize = Sizeof.cl_float * 3
     val colorArraySize = singleColorSize * rendering.screenWidth
 
-    val lookPointer = Pointer.to(lookDirectionArray)
-    val lookBuffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, Sizeof.cl_double *lookDirectionArray.length, lookPointer, null)
+    val imageMetadataPointer = Pointer.to(imageMetadataArray)
+    val imageMetadataBuffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+      Sizeof.cl_int *imageMetadataArray.length, imageMetadataPointer, null)
     val resultPointer = Pointer.to(colorVectorsPerRow)
     val resultBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, colorArraySize, resultPointer, null)
 
@@ -94,8 +125,10 @@ class GpuRunner(rendering: Rendering) {
     for (row <- 0 until rendering.screenHeight) {
       printf("\rrendering row %d/%d", row, rendering.screenHeight)
 
+      imageMetadataArray(0) = row
+      clEnqueueWriteBuffer(commandQueue, imageMetadataBuffer, CL_TRUE, 0, imageMetadataArray.length, imageMetadataPointer, 0, null, null)
       // Set the arguments for the kernel
-      clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(lookBuffer))
+      clSetKernelArg(kernel, 0, Sizeof.cl_mem, Pointer.to(imageMetadataBuffer))
       clSetKernelArg(kernel, 1, Sizeof.cl_mem, Pointer.to(resultBuffer))
 
       // Set the work-item dimensions
