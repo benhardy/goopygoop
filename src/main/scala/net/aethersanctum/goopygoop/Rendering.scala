@@ -16,7 +16,7 @@ class Rendering(val screenWidth:Int, val screenHeight:Int) {
   }
 
   def setPixel(x:Int, y:Int, red:Int, green:Int, blue:Int) {
-    image.setRGB(x, y, red | (green << 8) | (blue << 16))
+    image.setRGB(x, y, (red << 16) | (green << 8) | blue)
   }
 
   val RGB_RANGE = 255
