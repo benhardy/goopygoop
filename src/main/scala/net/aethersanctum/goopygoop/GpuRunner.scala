@@ -1,5 +1,6 @@
 package net.aethersanctum.goopygoop
 
+import net.aethersanctum.goopygoop.Vector3.tupleToVector3
 import org.jocl.CL._
 import org.jocl._
 
@@ -44,8 +45,8 @@ class GpuContext {
 
 }
 
-class GpuRunner(rendering: Rendering) {
-  val kernelMainLines = List(
+class GpuRunner(rendering: Rendering, scene:Scene) {
+  val constants = List(
     "#define color float3",
     "",
     "__constant double3 camera_position = { 0, 1, -10 };",
@@ -54,39 +55,49 @@ class GpuRunner(rendering: Rendering) {
     s"__constant int screen_width = ${rendering.screenWidth};",
     s"__constant int screen_height = ${rendering.screenHeight};",
     "",
-    "__constant color BLACK = { 0,0,0 };",
-    "__constant color WHITE = { 1,1,1 };",
-    "__constant color RED = { 1,0,0 };",
-    "",
-    "int checkering(double3 here) {",
-    "   return (here.x - floor(here.x) > 0.5 ? 1 : 0)",
-    "        ^ (here.y - floor(here.y) > 0.5 ? 1 : 0)",
-    "        ^ (here.z - floor(here.z) > 0.5 ? 1 : 0);",
-    "}",
-    "",
-    "double plane_distance(double3 point, double3 normal, double offset) {",
-    "  return length(point * dot(normalize(point), normal)) + offset;",
-    "}",
-    "__constant double3 plane_0_normal = { 0, 1, 0 };",
-    "__constant double  plane_0_offset = 0;",
     "__constant double  march_epsilon = 0.0001;",
     "__constant double  march_step_ratio = 0.5;",
     "__constant double  max_distance = 1000;",
     "__constant int max_steps = 500;",
     "",
+    "__constant color BLACK = { 0,0,0 };",
+    "__constant color WHITE = { 1,1,1 };",
+    "__constant color RED = { 1,0,0 };",
+    ""
+  )
+
+  val commonFunctions = List(
+    "int checkering(double3 here) {",
+    "   return (here.x - floor(here.x) > 0.5 ? 1 : 0)",
+    "        ^ (here.y - floor(here.y) > 0.5 ? 1 : 0)",
+    "        ^ (here.z - floor(here.z) > 0.5 ? 1 : 0);",
+    "}",
+    ""
+  )
+  def hitDetectionBlock:List[String] = {
+    scene.objects.flatMap(obj => {
+      val dd = obj.distanceInvocation
+      List(
+        s"    if ((measure = $dd) < march_epsilon) { hit_target = ${obj.id}; break; }"
+      )
+    })
+  }
+  val mainFunctions = List(
+    "",
     "color march(double3 starting_at, double3 ray_direction) {",
     "  color ink = BLACK;",
-    "  double3 currently_at = starting_at;",
+    "  double3 point = starting_at;",
     "  double distance = 0.0;",
     "  int step;",
+    "  int hit_target = -1;",
     "  for (step=0; step < max_steps; step++) { ",
-    "    double measure = plane_distance(currently_at, plane_0_normal, plane_0_offset);",
-    "    if (measure < march_epsilon) break;",
+    "    double measure;"
+      ) ++ hitDetectionBlock ++ List(
     "    distance += measure * march_step_ratio;",
-    "    currently_at = starting_at + ray_direction * distance;",
+    "    point = starting_at + ray_direction * distance;",
     "  }",
-    "  if (distance == 0.0 || step >= max_steps) return BLACK;",
-    "  color alt = checkering(currently_at) ? WHITE : RED;",
+    "  if (distance == 0.0 || step >= max_steps || hit_target == -1) return BLACK;",
+    "  color alt = checkering(point) ? WHITE : RED;",
     "  return alt;",
     "}",
     "",
@@ -128,7 +139,15 @@ class GpuRunner(rendering: Rendering) {
     val resultPointer = Pointer.to(colorVectorsPerRow)
     val resultBuffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, colorArraySize, resultPointer, null)
 
-    val kernelSource = Array[String](kernelMainLines.mkString("\n"))
+    val source = constants ++
+        commonFunctions ++
+        SceneObjectType.registry.flatMap(_.commonDeclarations) ++
+        scene.declarations ++
+        mainFunctions
+
+    source foreach println
+
+    val kernelSource = Array[String](source.mkString("\n"))
     // Create the program from the source code
     val program = clCreateProgramWithSource(context, 1, kernelSource, null, null)
 
@@ -182,7 +201,12 @@ class GpuRunner(rendering: Rendering) {
 object GpuRunner {
   def main(args:Array[String]):Unit = {
     val rendering = new Rendering(1024, 768)
-    val runner = new GpuRunner(rendering)
+    val scene = Scene(
+      List(
+        Plane(normal = (0.0, 1.0, 0.0), offset = 0.0)
+      )
+    )
+    val runner = new GpuRunner(rendering, scene)
     runner.run
     rendering.save("GpuRunner.png")
   }
