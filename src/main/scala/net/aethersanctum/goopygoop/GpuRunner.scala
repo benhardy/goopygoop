@@ -49,9 +49,6 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
   val constants = List(
     "#define color float3",
     "",
-    "__constant double3 camera_position = { 0, 1, -10 };",
-    "__constant double3 look_at = { 0, 0, 30 };",
-    "__constant double3 up = { 0, 1, 0 };",
     s"__constant int screen_width = ${rendering.screenWidth};",
     s"__constant int screen_height = ${rendering.screenHeight};",
     "",
@@ -202,9 +199,11 @@ object GpuRunner {
   def main(args:Array[String]):Unit = {
     val rendering = new Rendering(1024, 768, MarchOptions.QUICK)
     val scene = Scene(
-      List(
+      objects = List(
         Plane(normal = (0.0, 1.0, 0.0), offset = 0.0)
-      )
+      ),
+      cameraPosition = (-1.0, 5.0, -20.0),
+      lookAt = (0.0, 0.0, 0.0)
     )
     val runner = new GpuRunner(rendering, scene)
     runner.run
