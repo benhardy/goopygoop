@@ -55,10 +55,10 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
     s"__constant int screen_width = ${rendering.screenWidth};",
     s"__constant int screen_height = ${rendering.screenHeight};",
     "",
-    "__constant double  march_epsilon = 0.0001;",
-    "__constant double  march_step_ratio = 0.5;",
-    "__constant double  max_distance = 1000;",
-    "__constant int max_steps = 500;",
+    s"__constant double  march_epsilon = ${rendering.march.epsilon};",
+    s"__constant double  march_step_ratio = ${rendering.march.stepRatio};",
+    s"__constant double  max_distance = ${rendering.march.maxDistance};",
+    s"__constant int     max_steps = ${rendering.march.maxSteps};",
     "",
     "__constant color BLACK = { 0,0,0 };",
     "__constant color WHITE = { 1,1,1 };",
@@ -200,7 +200,7 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
 
 object GpuRunner {
   def main(args:Array[String]):Unit = {
-    val rendering = new Rendering(1024, 768)
+    val rendering = new Rendering(1024, 768, MarchOptions.QUICK)
     val scene = Scene(
       List(
         Plane(normal = (0.0, 1.0, 0.0), offset = 0.0)

@@ -4,8 +4,19 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 
+case class MarchOptions(
+    epsilon: Double,
+    maxDistance: Double,
+    stepRatio: Double,
+    maxSteps: Int
+)
 
-class Rendering(val screenWidth:Int, val screenHeight:Int) {
+object MarchOptions {
+  val QUICK = MarchOptions(epsilon = 0.001, maxDistance = 100, stepRatio = 0.5, maxSteps = 200)
+  val FINE = MarchOptions(epsilon = 0.00001, maxDistance = 1000, stepRatio = 0.1, maxSteps = 1000)
+}
+
+class Rendering(val screenWidth:Int, val screenHeight:Int, val march: MarchOptions) {
   val aspectRatio = screenHeight.toDouble / screenWidth
 
   val image = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB)
@@ -28,7 +39,7 @@ class Rendering(val screenWidth:Int, val screenHeight:Int) {
 
 object Rendering {
   def main(args:Array[String]): Unit = {
-    val rendering = new Rendering(640, 480)
+    val rendering = new Rendering(640, 480, MarchOptions.QUICK)
     for (y:Int <- 0 until rendering.screenHeight; x:Int <- 0 until rendering.screenWidth) {
       val check = ((x ^ y) & 0x20) > 0
       val red = if (check) 0 else (y & 0xff)
