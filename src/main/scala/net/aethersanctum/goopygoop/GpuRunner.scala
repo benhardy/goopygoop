@@ -71,7 +71,7 @@ class GpuRunner(rendering: Rendering) {
     "__constant double  plane_0_offset = 0;",
     "__constant double  march_epsilon = 0.0001;",
     "__constant double  march_step_ratio = 0.5;",
-    "__constant double  max_distance = 1000000;",
+    "__constant double  max_distance = 1000;",
     "__constant int max_steps = 500;",
     "",
     "color march(double3 where, double3 ray_direction) {",
