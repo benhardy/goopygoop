@@ -1,6 +1,5 @@
 package net.aethersanctum.goopygoop
 
-import net.aethersanctum.goopygoop.Vector3.tupleToVector3
 import org.jocl.CL._
 import org.jocl._
 
