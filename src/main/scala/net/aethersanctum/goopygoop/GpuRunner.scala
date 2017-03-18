@@ -75,7 +75,8 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
     scene.objects.flatMap(obj => {
       val dd = obj.distanceInvocation
       List(
-        s"    if ((measure = $dd) < march_epsilon) { hit_target = ${obj.id}; break; }"
+        s"    if ((measure = $dd) < march_epsilon) { hit_target = ${obj.id}; break; }",
+        s"    minm = fminf(measure, minm);"
       )
     })
   }
@@ -88,9 +89,10 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
     "  int step;",
     "  int hit_target = -1;",
     "  for (step=0; step < max_steps; step++) { ",
-    "    double measure;"
+    "    double measure;",
+    "    double minm = max_distance;"
       ) ++ hitDetectionBlock ++ List(
-    "    distance += measure * march_step_ratio;",
+    "    distance += minm * march_step_ratio;",
     "    point = starting_at + ray_direction * distance;",
     "  }",
     "  if (distance == 0.0 || step >= max_steps || hit_target == -1) return BLACK;",
