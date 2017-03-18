@@ -64,10 +64,10 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
   )
 
   val commonFunctions = List(
-    "int checkering(double3 here) {",
-    "   return (here.x - floor(here.x) > 0.5 ? 1 : 0)",
-    "        ^ (here.y - floor(here.y) > 0.5 ? 1 : 0)",
-    "        ^ (here.z - floor(here.z) > 0.5 ? 1 : 0);",
+    "long checkering(double3 here); // annoying that we get this warning without prototype present",
+    "long checkering(double3 here) {",
+    "   long3 gridded = (here - floor(here) > 0.5);",
+    "   return (gridded.x ^ gridded.y ^ gridded.z) & 1;",
     "}",
     ""
   )
