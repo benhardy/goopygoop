@@ -1,9 +1,10 @@
 package net.aethersanctum.goopygoop
 
-trait SceneObject {
-  def declarations:List[String]
+abstract class SceneObject(val objectType: SceneObjectType) {
+  def declarations: List[String]
   def distanceInvocation: String
-  def id: Int
+  def normalInvocation: String
+  val id: Int = SceneObject.nextId
 }
 
 object SceneObject {

@@ -80,8 +80,23 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
       )
     })
   }
+  def normalForIdGenerator: List[String] = {
+    val head = List(
+      "double3 normalFor(int objectId, double3 point) {",
+      "  switch(objectId) {"
+    )
+    val tail = List(
+      "  }",
+      "}"
+    )
+    val middle = scene.objects.map(obj =>
+      s"    case: ${obj.id}): return ${obj.normalInvocation};"
+    )
+    head ++ middle ++ tail
+  }
   val mainFunctions = List(
     "",
+    "color march(double3 starting_at, double3 ray_direction);",
     "color march(double3 starting_at, double3 ray_direction) {",
     "  color ink = BLACK;",
     "  double3 point = starting_at;",
@@ -140,7 +155,8 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
 
     val source = constants ++
         commonFunctions ++
-        SceneObjectType.registry.flatMap(_.commonDeclarations) ++
+      SceneObjectType.registry.flatMap(_.prototypes) ++
+      SceneObjectType.registry.flatMap(_.commonDeclarations) ++
         scene.declarations ++
         mainFunctions
 
