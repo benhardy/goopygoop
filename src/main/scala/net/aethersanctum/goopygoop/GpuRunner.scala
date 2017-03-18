@@ -89,7 +89,7 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
       "}"
     )
     val middle = scene.objects.map(obj =>
-      s"    case: ${obj.id}): return ${obj.normalInvocation};"
+      s"    case ${obj.id}: return ${obj.normalInvocation};"
     )
     head ++ middle ++ tail
   }
@@ -111,7 +111,8 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
     "  }",
     "  if (distance == 0.0 || step >= max_steps || hit_target == -1) return BLACK;",
     "  color alt = checkering(point) ? WHITE : RED;",
-    "  return alt;",
+    "  double3 normal = normalFor(hit_target, point);",
+    "  return alt * fmaxf(0.0, (float)(normal.y));",
     "}",
     "",
     "__kernel void kernelMain(__global int *imageMetadata, __global float *results) {",
@@ -157,6 +158,7 @@ class GpuRunner(rendering: Rendering, scene:Scene) {
       SceneObjectType.registry.flatMap(_.prototypes) ++
       SceneObjectType.registry.flatMap(_.commonDeclarations) ++
         scene.declarations ++
+        normalForIdGenerator ++
         mainFunctions
 
     source foreach println
